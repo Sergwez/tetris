@@ -1,0 +1,324 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <meta charset="utf-8">
+  <title>Tetris </title>
+ <style type="text/css">
+ canvas { float:none;}
+ .content {left:50%; margin-left:-240px;display:block; position:relative; width:480px;}
+  </style>
+ </head>
+ <body>
+	<div class="content">
+		<b id="score"> Ваш счет: 0</b>
+		<canvas height='896' width='448' id='canva'>Пример</canvas>
+	</div>
+	<script>
+	window.onload = function() {
+    (function start() {
+        "use strict";
+        let canva = document.getElementById("canva");
+        let ctx = canva.getContext('2d');
+        let box = 45; //размер бокса
+        let setInrvl = 10; //Интервал обновления
+        let blockSpeed = 500; //скорость падения блоков
+        let hTable = 996; //ширина доски, должна быть равна канвасу
+        let wTable = 498; //высота доски, должна быть равна канвасу
+        let colorBgGrey = "#879372"; //Цвет центра квадрата для фона
+        let colorBgGreen = "#9ead86"; //Цвет фона квадрата
+        let colorBlack = "#111111"; //Цвет центра квадрата для активного блока
+        let stepLeft = -1; //шаг блока влево при нажатии на кнопку
+        let stepRight = 1; //шаг блока вправо при нажатии на кнопку
+        let rotateOne = 1; //шаг поворота блока
+        let bot = 1; //шаг падения блока
+        let moveY = 0; //прибаляется к блоку при нажатии на клавишу лево или право	
+		let score = 0; //счет
+		blockSpeed = blockSpeed -score*100;
+  let speedId = setInterval(mspeed, blockSpeed);
+        //функция для построения блоков, где x, y координаты соответствующей оси, а colorBgGrey и colorBlack цвета блока
+        function buildBlock(x, y, colorBgGrey, colorBlack) {
+
+            ctx.translate(2, 2);
+            ctx.fillStyle = colorBlack;
+            ctx.fillRect(x * box, y * box, box - 4, box - 4);
+            ctx.translate(-2, -2);
+
+            ctx.translate(5, 5);
+            ctx.fillStyle = colorBgGrey;
+            ctx.fillRect(x * box, y * box, box - 10, box - 10);
+            ctx.translate(-5, -5);
+
+            ctx.translate(10, 10);
+            ctx.fillStyle = colorBlack;
+            ctx.fillRect(x * box, y * box, box - 20, box - 20);
+            ctx.translate(-10, -10);
+        }
+        let rotate = 1;
+        let leftright = 0;
+        let block = [];
+        //Виды блоков:
+        //Квадрат
+        let blockStr1 = "4.-3'4.-2'5.-2'5.-3*4.-3'4.-2'5.-2'5.-3#2";
+        //Палочка
+        let blockStr2 = "3.-2'4.-2'5.-2'6.-2*4.-4'4.-3'4.-2'4.-1#2";
+        //Буквой J
+        let blockStr3 = "4.-2'6.-2'5.-2'6.-3*5.-4'5.-3'5.-2'6.-2*4.-2'4.-3'5.-3'6.-3*4.-4'5.-4'5.-3'5.-2#4";
+        //Буквой L
+        let blockStr4 = "4.-2'6.-2'5.-2'4.-3*5.-4'4.-4'4.-3'4.-2*6.-2'6.-3'5.-3'4.-3*4.-2'5.-2'5.-3'5.-4#4";
+        //Пирамидкой
+        let blockStr5 = "5.-3'4.-2'5.-2'6.-2*5.-3'4.-2'4.-3'4.-4*5.-2'4.-3'5.-3'6.-3*4.-3'5.-2'5.-3'5.-4#4";
+        //буквой Z
+        let blockStr6 = "4.-3'5.-3'5.-2'6.-2*5.-4'5.-3'4.-3'4.-2#2";
+        //обратная Z
+        let blockStr7 = "4.-2'5.-2'5.-3'6.-3*4.-4'5.-3'4.-3'5.-2#2";
+        let blockStr;
+
+        function randBlock() {
+            let rand = Math.floor((Math.random() * 7));
+            if (rand == 0) {
+                blockStr = blockStr1;
+                return blockStr
+            } else if (rand == 1) {
+                blockStr = blockStr2;
+                return blockStr
+            } else if (rand == 2) {
+                blockStr = blockStr3;
+                return blockStr
+            } else if (rand == 3) {
+                blockStr = blockStr4;
+                return blockStr
+            } else if (rand == 4) {
+                blockStr = blockStr5;
+                return blockStr
+            } else if (rand == 5) {
+                blockStr = blockStr6;
+                return blockStr
+            } else if (rand == 6) {
+                blockStr = blockStr7;
+                return blockStr
+            }
+
+        };
+        randBlock();
+
+        function numberVar() {
+            return blockStr.slice(-1)
+        };
+        numberVar();
+
+        function blockCl(b) {
+
+            return blockStr.slice(0, -2).split("*")[b];
+        }
+
+        //массив где хранятся постоянные блоки
+        let blockData = [];
+        for (let x = 0; x < 10; x += 1) {
+            blockData[x] = []
+            for (let y = 0; y < 20; y += 1) {
+                blockData[x][y] = 0;
+            }
+        }
+        //скорость падения блоков
+        function mspeed() {
+            bot = bot + 1;
+            stepLeft = -1;
+            stepRight = 1;
+            rotateOne = 1;
+        }
+        let bData = new Array(10);
+
+        //частота обновления канваса
+        function msec() {
+			document.getElementById("score").innerHTML="Ваш счет: "+score;
+            background();
+
+            //массив где хранятся временные блоки
+            let blockDataTemp = [];
+            for (let x = 0; x < 10; x += 1) {
+                blockDataTemp[x] = []
+                for (let y = 0; y < 20; y += 1) {
+                    blockDataTemp[x][y] = 0;
+                }
+            }
+            //массив где хранятся временные блоки
+            let blockD = [];
+            for (let y = 0; y < 20; y += 1) {
+                blockD[y] = []
+                for (let x = 0; x < 10; x += 1) {
+                    blockD[y][x] = 0;
+                }
+            }
+
+            for (let i = 0; i < 4; i += 1) {
+                block[i] = blockCl(rotate).split("'").splice(i, 1)[0].split(".");
+            }
+
+            for (let i = 0; i < 4; i += 1) {
+                blockDataTemp[+block[i][0] + moveY][+block[i][1] + bot] = 1;
+            }
+
+            //очистка временных блоков
+            function replaceTemp() {
+                for (let x = 0; x < 10; x += 1) {
+                    for (let y = 0; y < 20; y += 1) {
+                        if (blockDataTemp[x][y] == 1) {
+                            blockData[x][y] = 1;
+                        }
+                    }
+                }
+                bot = 1;
+                moveY = 0;
+                randBlock();
+                rotate = 1;
+				
+            }
+
+            function clearTemp() {
+                for (let x = 0; x < 10; x += 1) {
+                    for (let y = 0; y < 20; y += 1) {
+                        blockDataTemp[x][y] = 0;
+                    }
+                }
+
+            }
+
+            //Выводим постоянные и переменные блоки 
+            for (let x = 0; x < 10; x += 1) {
+                for (let y = 0; y < 20; y += 1) {
+
+                    //Обнуляем совпавший ряд
+                    for (let i = 0; i < 10; i += 1) {
+                        bData[i] = blockData[i][y];
+                        if (bData.every(elem => elem == 1)) {
+                            clearTemp();
+							score += 1;
+							clearInterval(speedId);
+							speedId = setInterval(mspeed, blockSpeed-score*10);
+							
+                            for (let j = 0; j < 10; j += 1) {
+                                blockData[j][y] = 0;
+                                blockData[j].splice(y, 1);
+                                blockData[j].unshift(0);
+
+                            }
+                        }
+                    }
+
+                    //отображение блока
+                    if (blockData[x][y] == 1 || blockDataTemp[x][y] == 1) {
+                        buildBlock(x, y, colorBgGreen, colorBlack);
+                    }
+                    //приземляем блоки
+                    if (blockData[x][y + 1] == blockDataTemp[x][y] && blockDataTemp[x][y] == 1 || blockDataTemp[x][19] == 1) {
+                        replaceTemp();
+                    }
+					if (blockData[x][0]==1){
+						clearInterval(setIntervalId);
+						clearInterval(speedId);
+						//let conf = confirm("Игра закончена. Начать заново?");
+						 //if(conf == true){start()}
+					}
+					
+                    //проверка на выход блока из области видимости
+                    if (blockDataTemp[0][y] == 1) {
+
+                        stepLeft = 0;
+                        rotateOne = 0;
+                    }
+                    if (blockDataTemp[9][y] == 1) {
+
+                        stepRight = 0;
+                        rotateOne = 0;
+                    }
+					//alert(blockStr = blockStr1;);
+					if (blockStr == blockStr2&&blockDataTemp[8][y] == 1) {
+						//alert(23);
+                        rotateOne = 0;
+                    }
+
+                    //проверка на рядомстоящие блоки. если есть, то двигаться к такому блоку нельзя
+                    if (blockDataTemp[x][y] == 1) {
+                        let minusLimit = x - 1;
+                        if (minusLimit < 0) {
+                            minusLimit = 0
+                        }
+                        if (blockData[minusLimit][y] == blockDataTemp[x][y]) {
+                            stepLeft = 0;
+                            rotateOne = 0;
+                        }
+
+                        let plusLimit = x + 1;
+                        if (plusLimit > 9) {
+                            plusLimit = 9
+                        }
+                        if (blockData[plusLimit][y] == blockDataTemp[x][y]) {
+                            stepRight = 0;
+                            rotateOne = 0;
+                        }
+                    }
+
+                    for (let i = 0; i < 10; i += 1) {
+                        bData[i] = 0;
+                    }
+
+
+                }
+            }
+
+        } //finish msec 
+
+        //Делаем фон из квадратов
+        function background() {
+            ctx.fillStyle = colorBgGreen;
+            ctx.fillRect(0, 0, wTable, hTable)
+            for (let x = 0; x < 10; x += 1) {
+                for (let y = 0; y < 20; y += 1) {
+                    buildBlock(x, y, colorBgGreen, colorBgGrey);
+
+                }
+            }
+        }
+
+        addEventListener("keydown", function(event) {
+            //движение блока по х
+            if (event.keyCode == 37) {
+                moveY = moveY + stepLeft;
+            } 
+			else if (event.keyCode == 39) {
+                moveY = moveY + stepRight;
+            }
+            //Ускорение блока
+            else if (event.keyCode == 32) {
+                bot += 1;
+            }
+            //Поворот блока
+            else if (event.keyCode == 38) {
+                rotate += rotateOne;
+                rotate = rotate % numberVar();
+                blockCl(rotate);
+            } 
+			else if (event.keyCode == 40) {
+                rotate -= rotateOne;
+
+                blockCl(rotate);
+                if (rotate <= -1) {
+                    rotate = numberVar() - 1;
+                }
+            }
+
+        });
+
+        let setIntervalId = setInterval(msec, setInrvl);
+      
+        setIntervalId;
+        speedId;
+
+
+
+    })();
+};
+	</script>
+	
+  </body>
+ </html>
